@@ -1,5 +1,5 @@
 {
-	"ImportPath": ".",
+	"ImportPath": "github.com/jbrady42/vpn_config",
 	"GoVersion": "go1.6",
 	"GodepVersion": "v60",
 	"Deps": []
