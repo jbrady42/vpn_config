@@ -87,6 +87,7 @@ func withDB(fun func(*gorm.DB)) {
 // Migrate and seed
 func setupDB(db *gorm.DB) {
 
+	log.Println("Migrating")
 	db.AutoMigrate(&IPCount{})
 
 	var count int
