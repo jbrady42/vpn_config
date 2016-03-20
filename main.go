@@ -6,9 +6,9 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
-	"strings"
 	"sync"
+
+	"github.com/jbrady42/vpn_config/vpn_conf"
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
@@ -16,9 +16,9 @@ import (
 )
 
 var mut sync.Mutex
-var base = 256
 var VPN_PORT string
 var VPN_HOST string
+var baseIP = "2001:db8:1:2:0:0:0:2"
 
 type Conf struct {
 	IP     string
@@ -32,7 +32,7 @@ type IPCount struct {
 }
 
 func handleReq(w http.ResponseWriter, r *http.Request) {
-	addr := syncNextAddr()
+	addr := getNextAddr()
 	c := &Conf{addr, VPN_HOST, VPN_PORT}
 	renderTemplate(w, "peer", c)
 	log.Println("Sent config for ip", addr)
@@ -43,33 +43,14 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Conf) {
 	t.Execute(w, p)
 }
 
-func ipString(ip []int) string {
-	strs := make([]string, len(ip))
-	for i, a := range ip {
-		strs[i] = strconv.Itoa(a)
-	}
-	return strings.Join(strs, ".")
-}
-
-func addrDigits(ip string) []int {
-	parts := strings.Split(ip, ".")
-	digits := make([]int, len(parts))
-	for i, a := range parts {
-		digits[i], _ = strconv.Atoi(a)
-	}
-	return digits
-}
-
-func syncNextAddr() string {
+func getNextAddr() string {
 	mut.Lock()
 	db := connectDB()
 
 	ipM := currentAddress(db)
 	addr := ipM.IP
 
-	digits := addrDigits(addr)
-	digits = nextAddr(digits)
-	ret := ipString(digits)
+	ret := vpn_conf.NextAddress6(addr)
 
 	//Update latest address
 	db.Model(&ipM).Update("IP", ret)
@@ -78,16 +59,6 @@ func syncNextAddr() string {
 	mut.Unlock()
 
 	return ret
-}
-
-func nextAddr(addr []int) []int {
-	for x := len(addr) - 1; x > 0; x-- {
-		if addr[x] < base-2 {
-			addr[x] += 1
-			break
-		}
-	}
-	return addr
 }
 
 func currentAddress(db *gorm.DB) IPCount {
@@ -122,7 +93,7 @@ func setupDB(db *gorm.DB) {
 	db.Model(&IPCount{}).Count(&count)
 	if count == 0 {
 		log.Println("Inserting base record")
-		db.Create(&IPCount{IP: "10.8.0.2"})
+		db.Create(&IPCount{IP: baseIP})
 	}
 }
 
