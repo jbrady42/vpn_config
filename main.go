@@ -12,7 +12,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 )
 
 var mut sync.Mutex
@@ -70,8 +70,11 @@ func currentAddress(db *gorm.DB) IPCount {
 }
 
 func connectDB() *gorm.DB {
-	dbStr := os.Getenv("DATABASE_URL")
-	db, err := gorm.Open("postgres", dbStr)
+	dbUrl := os.Getenv("DATABASE_URL")
+	conStr, _ := pq.ParseURL(dbUrl)
+	conStr += fmt.Sprintf(" sslmode=%v", "disable") //require
+	log.Println(conStr)
+	db, err := gorm.Open("postgres", conStr)
 	if err != nil {
 		log.Fatal("Can't connect to db")
 	}
